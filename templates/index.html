@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Analisis String Matching - Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8 font-sans">
+    <div class="max-w-5xl mx-auto">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-black text-indigo-900 uppercase tracking-tighter">ANALISA ALGORITMA STRING: BRUTE FORCE DAN BOYER-MOORE</h1>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border">
+                    <h3 class="font-bold text-indigo-600 mb-4">1. Sumber Teks</h3>
+                    <input type="file" id="fileInput" class="text-xs mb-2 w-full border p-1 rounded">
+                    <button onclick="uploadFile()" class="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-bold mb-4">LOAD UPLOAD</button>
+                    
+                    <div class="border-t pt-4 space-y-2">
+                        <input type="number" id="sourceLen" value="10000" class="w-full p-2 border rounded text-sm" placeholder="Panjang">
+                        <select id="genType" class="w-full p-2 border rounded text-sm bg-gray-50">
+                            <option value="random">Random Case</option>
+                            <option value="worst">Worst Case</option>
+                        </select>
+                        <button onclick="generateSourceText()" class="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-bold">GENERATE RANDOM</button>
+                    </div>
+                    <p id="fileStatus" class="mt-3 text-xs font-bold text-center text-emerald-600"></p>
+                </div>
+
+                <div id="patternSection" class="bg-white p-5 rounded-2xl shadow-sm border opacity-50 pointer-events-none">
+                    <h3 class="font-bold text-amber-600 mb-4">2. Konfigurasi Pattern</h3>
+                    <input type="number" id="patternLen" value="5" class="w-full p-2 border rounded text-sm mb-2">
+                    <button onclick="generatePattern()" class="w-full bg-amber-500 text-white py-2 rounded-lg text-sm font-bold mb-4">GENERATE PATTERN</button>
+                    <input type="text" id="patternInput" class="w-full p-2 font-mono border rounded text-sm bg-amber-50" placeholder="Pattern...">
+                    <button id="btnRun" onclick="runAnalysis()" class="hidden w-full mt-4 bg-red-600 text-white py-3 rounded-lg font-black tracking-widest animate-pulse">MULAI ANALISIS</button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                <div id="results" class="hidden grid grid-cols-2 gap-4">
+                    <div class="bg-indigo-700 text-white p-6 rounded-2xl shadow-lg">
+                        <p class="text-xs opacity-70 uppercase font-bold">Brute Force</p>
+                        <p class="text-3xl font-black"><span id="bfTime">0</span> <span class="text-sm font-normal">ms</span></p>
+                    </div>
+                    <div class="bg-emerald-700 text-white p-6 rounded-2xl shadow-lg">
+                        <p class="text-xs opacity-70 uppercase font-bold">Boyer-Moore</p>
+                        <p class="text-3xl font-black"><span id="bmTime">0</span> <span class="text-sm font-normal">ms</span></p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                    <div class="bg-gray-50 px-6 py-4 border-b">
+                        <h3 class="font-bold text-gray-700 uppercase text-sm tracking-widest">Riwayat Pengujian (Limit 5)</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-100 text-gray-600 font-bold uppercase text-[10px]">
+                                <tr>
+                                    <th class="px-4 py-3">Panjang Teks</th>
+                                    <th class="px-4 py-3">Tipe Case</th>
+                                    <th class="px-4 py-3">P. Pattern</th>
+                                    <th class="px-4 py-3 text-blue-600">BF (ms)</th>
+                                    <th class="px-4 py-3 text-emerald-600">BM (ms)</th>
+                                    <th class="px-4 py-3">Deviasi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody" class="divide-y divide-gray-100">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testHistory = [];
+
+        function activateNext() {
+            document.getElementById('patternSection').classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        async function uploadFile() {
+            const formData = new FormData();
+            formData.append('file', document.getElementById('fileInput').files[0]);
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            document.getElementById('fileStatus').innerText = `✅ Teks Dimuat`;
+            activateNext();
+        }
+
+        async function generateSourceText() {
+            const res = await fetch('/generate_source_text', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    length: parseInt(document.getElementById('sourceLen').value), 
+                    type: document.getElementById('genType').value 
+                })
+            });
+            const data = await res.json();
+            document.getElementById('fileStatus').innerText = `✅ Teks ${data.length} Karakter Dibuat`;
+            activateNext();
+        }
+
+        async function generatePattern() {
+            const res = await fetch('/generate_pattern', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    length: parseInt(document.getElementById('patternLen').value),
+                    type: document.getElementById('genType').value
+                })
+            });
+            const data = await res.json();
+            document.getElementById('patternInput').value = data.pattern;
+            document.getElementById('btnRun').classList.remove('hidden');
+        }
+
+        async function runAnalysis() {
+            const pattern = document.getElementById('patternInput').value;
+            const res = await fetch('/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ pattern: pattern })
+            });
+            const data = await res.json();
+
+            // Update UI hasil real-time
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('bfTime').innerText = data.bf_time;
+            document.getElementById('bmTime').innerText = data.bm_time;
+
+            // Tambahkan ke histori
+            updateHistory(data);
+        }
+
+        function updateHistory(data) {
+            const deviasi = Math.abs(data.bf_time - data.bm_time).toFixed(4);
+            
+            // Masukkan data baru di awal array
+            testHistory.unshift({
+                textLen: data.text_len.toLocaleString(),
+                caseType: data.case_type,
+                patternLen: data.pattern_len.toLocaleString(),
+                bf: data.bf_time,
+                bm: data.bm_time,
+                dev: deviasi
+            });
+
+            // Limit histori hanya 5
+            if (testHistory.length > 5) testHistory.pop();
+
+            // Render ulang tabel
+            const body = document.getElementById('historyBody');
+            body.innerHTML = testHistory.map(item => `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 font-medium">${item.textLen}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 bg-gray-100 rounded-md text-[10px]">${item.caseType}</span></td>
+                    <td class="px-4 py-3 font-mono">${item.patternLen}</td>
+                    <td class="px-4 py-3 text-blue-600 font-bold">${item.bf}</td>
+                    <td class="px-4 py-3 text-emerald-600 font-bold">${item.bm}</td>
+                    <td class="px-4 py-3 text-red-500 font-bold">${item.dev}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
